@@ -113,5 +113,53 @@ qs <- generate_qs(z = nh0506$z,
                   max_ratio = 2.6, 
                   max_extra_s = 0, 
                   strata_dist = strata_dist)
-qs
+qs[1, ]
+
+## -----------------------------------------------------------------------------
+data('nh0506_3groups')
+table(nh0506_3groups$z)
+
+## -----------------------------------------------------------------------------
+strata2 <- cut(nh0506_3groups$age, 
+               breaks = c(19, 39, 50, 85), 
+               labels = c('< 40 years', '40 - 50 years', '> 50 years'))
+
+## ---- echo = FALSE------------------------------------------------------------
+st_tab2 <- table(strata2, nh0506_3groups$z)
+st_ratios2 <- data.frame(Stratum = row.names(st_tab2),
+                        'Never smokers' = st_tab2[, 1],
+                        'Some smoking' = st_tab2[, 2],
+                        'Daily smokers' = st_tab2[, 3],
+                        row.names = NULL)
+DT::datatable(st_ratios2[, c('Stratum', 'Daily.smokers', 'Some.smoking', 'Never.smokers')],
+              colnames = c('Stratum', 'Daily smokers', 'Some smoking', 'Never smokers'), 
+              options = list(paging = FALSE, searching = FALSE))
+
+## -----------------------------------------------------------------------------
+constraints2 <- generate_constraints(
+  balance_formulas = list(age + race + education + povertyr + bmi + sex ~ 1 + strata2), 
+  z = nh0506_3groups$z, 
+  data = nh0506_3groups,
+  treated = 'daily smoker')
+
+names(constraints2)
+dim(constraints2$X)
+length(constraints2$importances)
+
+## -----------------------------------------------------------------------------
+q_star_s <- matrix(c(rep(table(nh0506_3groups$z, strata2)['some smoking', ] - 
+                           table(nh0506_3groups$z, strata2)['daily smoker', ], 2), 
+                     rep(0, 3)), byrow = TRUE, nrow = 3, 
+                   dimnames = list(levels(nh0506_3groups$z), levels(strata2)))
+q_star_s
+
+results <- optimize_controls(z = nh0506_3groups$z, 
+                             X = constraints2$X, 
+                             importances = constraints2$importances,
+                             st = strata2, 
+                             ratio = 1, 
+                             treated = 'daily smoker', 
+                             treated_star = 'some smoking',
+                             q_star_s = q_star_s,
+                             correct_sizes = FALSE)
 
